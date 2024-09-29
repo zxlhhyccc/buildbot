@@ -1,4 +1,29 @@
-FROM        debian:11
+FROM alpinelinux/build-base:latest-x86_64 AS apk-builder
+
+RUN abuild-apk add -u \
+	gcc \
+	git \
+	linux-headers \
+	lua5.3-dev \
+	lua5.3-lzlib \
+	make \
+	musl-dev \
+	openssl-dev \
+	openssl-libs-static \
+	zlib-dev \
+	zlib-static \
+	zstd-dev \
+	zstd-static
+
+ARG APK_TOOLS_COMMIT=74de0e9bd73d1af8720df40aa68d472943909804
+
+RUN git clone https://gitlab.alpinelinux.org/alpine/apk-tools.git /tmp/apk-tools
+WORKDIR /tmp/apk-tools
+RUN git checkout $APK_TOOLS_COMMIT
+RUN make -j$(nproc) static
+
+
+FROM        debian:12
 MAINTAINER  OpenWrt Maintainers
 
 ARG         DEBIAN_FRONTEND=noninteractive
@@ -21,12 +46,15 @@ RUN \
 		locales \
 		pv \
 		pwgen \
+		python3-venv \
 		python3-pip \
 		signify-openbsd \
 		wget && \
 	apt-get clean && \
 	localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 RUN pip3 install -U pip
 RUN \
 	pip3 install \
@@ -38,15 +66,16 @@ RUN \
 		"buildbot-worker==$BUILDBOT_VERSION" \
 		pyOpenSSL \
 		service_identity
+
 RUN \
 	sed -i \
 	's/Welcome to buildbot/Welcome to OpenWrt buildbot/' \
-	/usr/local/lib/python*/dist-packages/buildbot_www/static/scripts.js
+	/opt/venv/lib/python*/site-packages/buildbot_www/static/scripts.js
 
 RUN \
 	sed -i \
 	"s;\"col-sm-12\"><ul><li ng-repeat;\"col-sm-12\"><ul><li>OpenWrt version: <a href=\"https://git.openwrt.org/$OPENWRT_VERSION\">$OPENWRT_VERSION</a></li><li ng-repeat;" \
-	/usr/local/lib/python*/dist-packages/buildbot_www/static/scripts.js
+	/opt/venv/lib/python*/site-packages/buildbot_www/static/scripts.js
 
 ENV LANG=en_US.utf8
 
@@ -55,6 +84,7 @@ COPY docker/buildmaster/files/start.sh /start.sh
 COPY phase1 /phase1
 COPY phase2 /phase2
 COPY scripts /scripts
+COPY --from=apk-builder /tmp/apk-tools/src/apk.static /usr/bin/apk
 
 RUN \
     groupadd buildbot && \

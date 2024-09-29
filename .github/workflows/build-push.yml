@@ -2,13 +2,13 @@ name: Build and push containers
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - 'v*'
   pull_request:
 
 env:
-  BUILDBOT_VERSION: 3.11.1
+  BUILDBOT_VERSION: 3.11.8
   GITHUB_SHA_LEN: 8
 
 concurrency:
@@ -23,8 +23,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.9"
-          - "3.10"
+          - "3.11"
 
     steps:
       - name: Checkout
@@ -59,10 +58,8 @@ jobs:
       matrix:
         include:
           - container_flavor: master
-            container_verify_string: "buildmaster configured in /master"
           - container_flavor: worker
-            container_test_command: "--env BUILDWORKER_NAME=X --env BUILDWORKER_PASSWORD=Y"
-            container_verify_string: "worker configured in /builder"
+            container_test_command: "--env BUILDWORKER_TLS=1 --env BUILDWORKER_MASTER=Z:1922 --env BUILDWORKER_NAME=X --env BUILDWORKER_PASSWORD=Y"
 
     steps:
       - name: Checkout
