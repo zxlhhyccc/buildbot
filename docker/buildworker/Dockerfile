@@ -1,13 +1,14 @@
 FROM        debian:11
-MAINTAINER  OpenWrt Maintainers
+LABEL       maintainer="OpenWrt Maintainers"
 
 ARG         DEBIAN_FRONTEND=noninteractive
 ARG         BUILDBOT_VERSION=2.10.1
-ARG         OPENWRT_VERSION=unknown
+ARG         BUILDBOT_CONFIG_SHA=unknown
+ARG         CONTAINER_TAG=unknown
 
-ENV         BUILDWORKER_MASTER builds.openwrt.org:9990
-ENV         BUILDWORKER_ADMIN contact@openwrt.org
-ENV         BUILDWORKER_DESCRIPTION Docker Container https://git.openwrt.org/$OPENWRT_VERSION
+ENV         BUILDWORKER_MASTER=builds.openwrt.org:9990
+ENV         BUILDWORKER_ADMIN=contact@openwrt.org
+ENV         BUILDWORKER_DESCRIPTION="Container ($CONTAINER_TAG) https://git.openwrt.org/$BUILDBOT_CONFIG_SHA"
 
 USER root
 
@@ -17,6 +18,7 @@ RUN \
 		build-essential \
 		ccache \
 		curl \
+		file \
 		gawk \
 		g++-multilib \
 		gcc-multilib \
@@ -29,9 +31,11 @@ RUN \
 		locales \
 		pv \
 		pwgen \
-		python \
 		python3 \
+		python3-venv \
 		python3-pip \
+		python3-pyelftools \
+		python3-cryptography \
 		qemu-utils \
 		rsync \
 		signify-openbsd \
@@ -43,6 +47,8 @@ RUN \
 	apt-get clean && \
 	localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 RUN pip3 install -U pip
 RUN pip3 install \
 		"buildbot-worker==$BUILDBOT_VERSION" \
